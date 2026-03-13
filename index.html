@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>token-scanner // virus4d</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --red: #cc0000;
+      --red-dim: #880000;
+      --bg: #000000;
+      --bg2: #080808;
+      --bg3: #111111;
+      --border: #1a1a1a;
+      --text: #666666;
+      --text-bright: #cccccc;
+      --green: #00cc44;
+      --orange: #cc6600;
+      --blue: #0052ff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .container { max-width: 860px; margin: 0 auto; padding: 36px 24px; }
+
+    header { margin-bottom: 40px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+
+    .logo {
+      font-family: 'Orbitron', monospace;
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--red);
+      letter-spacing: 3px;
+      animation: flicker 6s infinite;
+    }
+
+    .tagline { font-size: 10px; color: #222; letter-spacing: 3px; margin-top: 5px; }
+
+    .chain-badges { display: flex; gap: 8px; margin-top: 8px; }
+
+    .chain-badge {
+      display: inline-block;
+      font-size: 9px;
+      letter-spacing: 2px;
+      padding: 3px 10px;
+      border: 1px solid #0052ff44;
+      color: #0052ff;
+    }
+
+    .chain-badge.eth { border-color: #627eea44; color: #627eea; }
+
+    @keyframes flicker {
+      0%,94%,100%{opacity:1} 95%{opacity:.3} 96%{opacity:1} 98%{opacity:.5} 99%{opacity:1}
+    }
+
+    /* INPUT */
+    .input-section { margin-bottom: 32px; }
+
+    .chain-selector {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 10px;
+    }
+
+    .chain-btn {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: #333;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .chain-btn:hover { color: var(--text); border-color: #333; }
+    .chain-btn.active-eth { color: #627eea; border-color: #627eea66; background: rgba(98,126,234,0.05); }
+    .chain-btn.active-base { color: var(--blue); border-color: #0052ff66; background: rgba(0,82,255,0.05); }
+
+    .prompt-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .prompt-label { color: var(--red); font-size: 12px; white-space: nowrap; }
+
+    .input-wrapper {
+      display: flex;
+      flex: 1;
+      border: 1px solid #1a1a1a;
+      background: var(--bg2);
+    }
+
+    .input-wrapper:focus-within { border-color: var(--red-dim); }
+
+    input[type="text"] {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-bright);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px;
+      padding: 13px 14px;
+      letter-spacing: 1px;
+    }
+
+    input::placeholder { color: #222; }
+
+    button#scan-btn {
+      background: var(--red);
+      border: none;
+      color: #000;
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 0 20px;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    button#scan-btn:hover { background: #ff0000; }
+    button#scan-btn:disabled { background: #111; color: #333; cursor: not-allowed; }
+
+    .hint { font-size: 10px; color: #222; letter-spacing: 1px; margin-top: 6px; }
+
+    /* PIPELINE */
+    #pipeline { display: none; margin-bottom: 28px; }
+
+    .pipeline-steps { display: flex; gap: 0; border: 1px solid var(--border); }
+
+    .step {
+      flex: 1;
+      padding: 10px 14px;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: #222;
+      border-right: 1px solid var(--border);
+      transition: all 0.3s;
+    }
+
+    .step:last-child { border-right: none; }
+    .step.active { color: var(--red); background: rgba(204,0,0,0.05); }
+    .step.done { color: var(--green); }
+    .step.done::after { content: ' ✓'; }
+
+    /* ERROR */
+    #error-box {
+      display: none;
+      background: rgba(204,0,0,0.05);
+      border: 1px solid var(--red-dim);
+      color: var(--red);
+      font-size: 11px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      letter-spacing: 1px;
+    }
+
+    #status-bar {
+      display: none;
+      font-size: 10px;
+      color: var(--red);
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* TOKEN HEADER */
+    #token-header { display: none; margin-bottom: 28px; }
+
+    .token-identity {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 20px;
+      background: var(--bg2);
+      border-left: 3px solid var(--red);
+    }
+
+    .token-symbol-big {
+      font-family: 'Orbitron', monospace;
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--red);
+      min-width: 80px;
+    }
+
+    .token-info-col { flex: 1; }
+
+    .token-name {
+      font-size: 16px;
+      color: var(--text-bright);
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+
+    .token-address {
+      font-size: 10px;
+      color: #333;
+      letter-spacing: 1px;
+    }
+
+    .token-address a { color: inherit; text-decoration: none; }
+    .token-address a:hover { color: var(--red); }
+
+    .verified-badge {
+      font-size: 9px;
+      padding: 4px 10px;
+      letter-spacing: 2px;
+      border: 1px solid;
+    }
+
+    .verified-badge.yes { border-color: var(--green); color: var(--green); }
+    .verified-badge.no { border-color: var(--red); color: var(--red); }
+
+    .price-big {
+      font-family: 'Orbitron', monospace;
+      font-size: 22px;
+      color: var(--text-bright);
+      text-align: right;
+    }
+
+    .price-change {
+      font-size: 11px;
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    .price-change.up { color: var(--green); }
+    .price-change.down { color: var(--red); }
+    .price-change.neutral { color: #444; }
+
+    /* STATS GRID */
+    #stats-section { display: none; margin-bottom: 28px; }
+
+    .section-label {
+      font-size: 9px;
+      color: #333;
+      letter-spacing: 3px;
+      margin-bottom: 10px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+    }
+
+    .stat-card {
+      background: var(--bg2);
+      padding: 14px;
+      border-left: 2px solid var(--border);
+    }
+
+    .stat-card label {
+      font-size: 8px;
+      color: #333;
+      letter-spacing: 2px;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .stat-card .val {
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+      color: var(--text-bright);
+    }
+
+    .stat-card .val.small { font-size: 10px; }
+    .stat-card .sub { font-size: 9px; color: #333; margin-top: 3px; }
+
+    /* TX LIST */
+    #tx-section { display: none; margin-bottom: 28px; }
+
+    .tx-mini {
+      display: grid;
+      grid-template-columns: 90px 1fr 1fr 110px;
+      gap: 10px;
+      align-items: center;
+      padding: 9px 12px;
+      background: var(--bg2);
+      font-size: 11px;
+      border-left: 2px solid transparent;
+      transition: border-color 0.1s;
+      margin-bottom: 2px;
+    }
+
+    .tx-mini:hover { border-left-color: var(--red); }
+    .tx-mini .hash { color: #333; font-size: 10px; }
+    .tx-mini .hash a { color: inherit; text-decoration: none; }
+    .tx-mini .hash a:hover { color: var(--red); }
+    .tx-mini .addr { color: #444; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tx-mini .amount { text-align: right; font-family: 'Orbitron', monospace; font-size: 10px; color: var(--text); }
+
+    .badge-sm {
+      font-size: 8px;
+      padding: 2px 6px;
+      border: 1px solid;
+      letter-spacing: 1px;
+    }
+
+    .badge-sm.transfer { border-color: #627eea; color: #627eea; }
+    .badge-sm.approval { border-color: var(--orange); color: var(--orange); }
+    .badge-sm.other { border-color: #333; color: #333; }
+
+    /* FOOTER */
+    footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      color: #1a1a1a;
+      letter-spacing: 2px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">TOKEN<span>-</span>SCANNER</div>
+    <div class="tagline">// contract intelligence · by virus4d</div>
+    <div class="chain-badges">
+      <span class="chain-badge eth">ETHEREUM · CHAIN ID 1</span>
+      <span class="chain-badge">BASE · CHAIN ID 8453</span>
+    </div>
+  </header>
+
+  <div class="input-section">
+    <div class="chain-selector">
+      <button class="chain-btn active-eth" id="btn-eth" onclick="selectChain('eth')">① ETHEREUM</button>
+      <button class="chain-btn" id="btn-base" onclick="selectChain('base')">② BASE</button>
+    </div>
+    <div class="prompt-line">
+      <span class="prompt-label">$&gt; scan</span>
+      <div class="input-wrapper">
+        <input type="text" id="contract-input" placeholder="0x endereço do contrato..." autocomplete="off" spellcheck="false"/>
+        <button id="scan-btn" onclick="runScanner()">ESCANEAR</button>
+      </div>
+    </div>
+    <div class="hint">// cole o endereço do contrato do token — ERC-20</div>
+  </div>
+
+  <div id="status-bar"></div>
+  <div id="error-box"></div>
+
+  <div id="pipeline">
+    <div class="pipeline-steps">
+      <div class="step" id="step1">① CONTRATO</div>
+      <div class="step" id="step2">② SUPPLY</div>
+      <div class="step" id="step3">③ PREÇO</div>
+      <div class="step" id="step4">④ ATIVIDADE</div>
+    </div>
+  </div>
+
+  <!-- TOKEN HEADER -->
+  <div id="token-header">
+    <div class="token-identity">
+      <div class="token-symbol-big" id="t-symbol">—</div>
+      <div class="token-info-col">
+        <div class="token-name" id="t-name">—</div>
+        <div class="token-address">
+          contrato: <a id="t-address-link" href="#" target="_blank" id="t-address">—</a>
+        </div>
+        <div style="margin-top:8px">
+          <span class="verified-badge" id="t-verified">—</span>
+        </div>
+      </div>
+      <div>
+        <div class="price-big" id="t-price">—</div>
+        <div class="price-change" id="t-change">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div id="stats-section">
+    <div class="section-label">// VISÃO GERAL DO TOKEN</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <label>SUPPLY TOTAL</label>
+        <div class="val small" id="s-supply">—</div>
+      </div>
+      <div class="stat-card">
+        <label>DECIMAIS</label>
+        <div class="val" id="s-decimals">—</div>
+      </div>
+      <div class="stat-card">
+        <label>MARKET CAP</label>
+        <div class="val small" id="s-mcap">—</div>
+        <div class="sub" id="s-mcap-sub"></div>
+      </div>
+      <div class="stat-card">
+        <label>VOLUME 24H</label>
+        <div class="val small" id="s-volume">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TX LIST -->
+  <div id="tx-section">
+    <div class="section-label">// ÚLTIMAS TRANSFERÊNCIAS</div>
+    <div id="tx-list"></div>
+  </div>
+
+  <footer>
+    <span>token-scanner // virus4d</span>
+    <span>etherscan v2 · coingecko · base · ethereum</span>
+  </footer>
+
+</div>
+
+<script>
+  const ETHERSCAN_KEY = 'XH56ZMYSJTI64KY3V14NMWH7ZV6DFU951Z';
+  let selectedChain = 'eth';
+
+  function selectChain(chain) {
+    selectedChain = chain;
+    document.getElementById('btn-eth').className = 'chain-btn' + (chain === 'eth' ? ' active-eth' : '');
+    document.getElementById('btn-base').className = 'chain-btn' + (chain === 'base' ? ' active-base' : '');
+  }
+
+  const short = a => a ? a.slice(0,6)+'...'+a.slice(-4) : '—';
+
+  function formatNum(n) {
+    if (!n || isNaN(n)) return '—';
+    if (n >= 1e12) return (n/1e12).toFixed(2) + 'T';
+    if (n >= 1e9)  return (n/1e9).toFixed(2) + 'B';
+    if (n >= 1e6)  return (n/1e6).toFixed(2) + 'M';
+    if (n >= 1e3)  return (n/1e3).toFixed(2) + 'K';
+    return n.toFixed(2);
+  }
+
+  function formatPrice(p) {
+    if (!p || isNaN(p)) return '—';
+    if (p < 0.0001) return '$' + p.toExponential(2);
+    if (p < 1) return '$' + p.toFixed(6);
+    return '$' + p.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:4});
+  }
+
+  function setStep(n, state) {
+    const el = document.getElementById('step'+n);
+    el.className = 'step ' + state;
+  }
+
+  function setStatus(msg, show) {
+    const el = document.getElementById('status-bar');
+    el.textContent = msg;
+    el.style.display = show ? 'block' : 'none';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-box');
+    el.textContent = '// ERRO: ' + msg;
+    el.style.display = 'block';
+  }
+
+  function hideError() { document.getElementById('error-box').style.display = 'none'; }
+
+  async function ethCall(contractAddr, data) {
+    const rpc = selectedChain === 'eth' ? 'https://eth.llamarpc.com' : 'https://mainnet.base.org';
+    const res = await fetch(rpc, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'eth_call', params:[{ to: contractAddr, data }, 'latest'] })
+    });
+    const json = await res.json();
+    return json.result;
+  }
+
+  function decodeString(hex) {
+    if (!hex || hex === '0x') return '—';
+    try {
+      // ABI decode string: skip first 64 bytes (offset), next 32 bytes (length), then UTF-8
+      const noPrefix = hex.slice(2);
+      const offset = parseInt(noPrefix.slice(0, 64), 16) * 2;
+      const length = parseInt(noPrefix.slice(offset, offset + 64), 16) * 2;
+      const strHex = noPrefix.slice(offset + 64, offset + 64 + length);
+      let str = '';
+      for (let i = 0; i < strHex.length; i += 2) {
+        str += String.fromCharCode(parseInt(strHex.slice(i, i+2), 16));
+      }
+      return str.trim() || '—';
+    } catch {
+      // fallback: try bytes32 fixed
+      try {
+        const noPrefix = hex.slice(2);
+        let str = '';
+        for (let i = 0; i < 64; i += 2) {
+          const c = parseInt(noPrefix.slice(i, i+2), 16);
+          if (c === 0) break;
+          str += String.fromCharCode(c);
+        }
+        return str.trim() || '—';
+      } catch { return '—'; }
+    }
+  }
+
+  function decodeUint(hex) {
+    if (!hex || hex === '0x') return 0;
+    return parseInt(hex, 16);
+  }
+
+  async function runScanner() {
+    const input = document.getElementById('contract-input').value.trim();
+    const btn = document.getElementById('scan-btn');
+
+    if (!input || input.length !== 42 || !input.startsWith('0x')) {
+      showError('endereço inválido — deve começar com 0x e ter 42 caracteres');
+      return;
+    }
+
+    hideError();
+    btn.disabled = true;
+
+    ['token-header','stats-section','tx-section'].forEach(id => {
+      document.getElementById(id).style.display = 'none';
+    });
+
+    document.getElementById('pipeline').style.display = 'block';
+    setStep(1,'active'); setStep(2,''); setStep(3,''); setStep(4,'');
+    setStatus('▓ LENDO CONTRATO...', true);
+
+    const chainId = selectedChain === 'eth' ? 1 : 8453;
+    const explorerBase = selectedChain === 'eth' ? 'https://etherscan.io' : 'https://basescan.org';
+
+    try {
+      // ── STEP 1: CONTRATO — nome, símbolo, decimais via RPC ──
+      const [nameHex, symbolHex, decimalsHex] = await Promise.all([
+        ethCall(input, '0x06fdde03'), // name()
+        ethCall(input, '0x95d89b41'), // symbol()
+        ethCall(input, '0x313ce567'), // decimals()
+      ]);
+
+      const name     = decodeString(nameHex);
+      const symbol   = decodeString(symbolHex);
+      const decimals = decodeUint(decimalsHex) || 18;
+
+      if (name === '—' && symbol === '—') throw new Error('contrato não parece ser um token ERC-20 válido');
+
+      // verificado no Etherscan
+      let verified = false;
+      try {
+        const verUrl = `https://api.etherscan.io/v2/api?chainid=${chainId}&module=contract&action=getabi&address=${input}&apikey=${ETHERSCAN_KEY}`;
+        const verProxy = 'https://corsproxy.io/?' + encodeURIComponent(verUrl);
+        const verRes = await fetch(verProxy);
+        const verData = await verRes.json();
+        verified = verData.status === '1';
+      } catch(e) { console.warn('verificação falhou:', e); }
+
+      // atualizar header
+      document.getElementById('t-symbol').textContent = symbol;
+      document.getElementById('t-name').textContent = name;
+      document.getElementById('t-address').textContent = short(input);
+      document.getElementById('t-address-link').href = `${explorerBase}/token/${input}`;
+      document.getElementById('t-address-link').textContent = input;
+
+      const vBadge = document.getElementById('t-verified');
+      vBadge.textContent = verified ? '✓ VERIFICADO' : '✗ NÃO VERIFICADO';
+      vBadge.className = 'verified-badge ' + (verified ? 'yes' : 'no');
+
+      document.getElementById('token-header').style.display = 'block';
+
+      setStep(1,'done'); setStep(2,'active');
+      setStatus('▓ BUSCANDO SUPPLY...', true);
+
+      // ── STEP 2: SUPPLY via RPC ──
+      const totalSupplyHex = await ethCall(input, '0x18160ddd'); // totalSupply()
+      const rawSupply = BigInt(totalSupplyHex || '0x0');
+      const supply = Number(rawSupply) / Math.pow(10, decimals);
+
+      document.getElementById('s-supply').textContent = formatNum(supply) + ' ' + symbol;
+      document.getElementById('s-decimals').textContent = decimals;
+      document.getElementById('stats-section').style.display = 'block';
+
+      setStep(2,'done'); setStep(3,'active');
+      setStatus('▓ BUSCANDO PREÇO...', true);
+
+      // ── STEP 3: PREÇO via CoinGecko ──
+      let price = 0, change24h = 0, volume24h = 0, mcap = 0;
+      try {
+        const platform = selectedChain === 'eth' ? 'ethereum' : 'base';
+        const cgUrl = `https://api.coingecko.com/api/v3/coins/${platform}/contract/${input}`;
+        const cgRes = await fetch(cgUrl);
+        if (cgRes.ok) {
+          const cgData = await cgRes.json();
+          price    = cgData.market_data?.current_price?.usd || 0;
+          change24h = cgData.market_data?.price_change_percentage_24h || 0;
+          volume24h = cgData.market_data?.total_volume?.usd || 0;
+          mcap     = cgData.market_data?.market_cap?.usd || 0;
+        }
+      } catch(e) { console.warn('preço não disponível:', e); }
+
+      document.getElementById('t-price').textContent = price > 0 ? formatPrice(price) : 'sem preço';
+      const changeEl = document.getElementById('t-change');
+      if (change24h !== 0) {
+        changeEl.textContent = (change24h > 0 ? '▲' : '▼') + ' ' + Math.abs(change24h).toFixed(2) + '% (24h)';
+        changeEl.className = 'price-change ' + (change24h > 0 ? 'up' : 'down');
+      } else {
+        changeEl.textContent = '— sem dados 24h';
+        changeEl.className = 'price-change neutral';
+      }
+
+      document.getElementById('s-mcap').textContent = mcap > 0 ? '$' + formatNum(mcap) : '—';
+      document.getElementById('s-volume').textContent = volume24h > 0 ? '$' + formatNum(volume24h) : '—';
+
+      setStep(3,'done'); setStep(4,'active');
+      setStatus('▓ BUSCANDO TRANSFERÊNCIAS...', true);
+
+      // ── STEP 4: ÚLTIMAS TXS ──
+      const txUrl = `https://api.etherscan.io/v2/api?chainid=${chainId}&module=account&action=tokentx&contractaddress=${input}&page=1&offset=15&sort=desc&apikey=${ETHERSCAN_KEY}`;
+      let txs = [];
+      const proxies = [
+        'https://corsproxy.io/?' + encodeURIComponent(txUrl),
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(txUrl),
+      ];
+      for (const p of proxies) {
+        try {
+          const r = await fetch(p);
+          const j = await r.json();
+          if (Array.isArray(j.result) && j.result.length > 0) { txs = j.result; break; }
+        } catch(e) { console.warn('proxy tx falhou:', e); }
+      }
+
+      const list = document.getElementById('tx-list');
+      list.innerHTML = '';
+      if (txs.length > 0) {
+        txs.slice(0, 10).forEach(tx => {
+          const val = parseFloat(tx.value) / Math.pow(10, parseInt(tx.tokenDecimal) || decimals);
+          const row = document.createElement('div');
+          row.className = 'tx-mini';
+          row.innerHTML = `
+            <span class="hash"><a href="${explorerBase}/tx/${tx.hash}" target="_blank">${short(tx.hash)}</a></span>
+            <span class="addr" title="${tx.from}">${short(tx.from)}</span>
+            <span class="addr" title="${tx.to}">${short(tx.to)}</span>
+            <span class="amount">${formatNum(val)} <span class="badge-sm transfer">TRANSFER</span></span>
+          `;
+          list.appendChild(row);
+        });
+      } else {
+        list.innerHTML = '<div style="padding:12px;color:#333;font-size:11px">// sem transferências recentes encontradas</div>';
+      }
+      document.getElementById('tx-section').style.display = 'block';
+
+      setStep(4,'done');
+      setStatus('', false);
+
+    } catch(err) {
+      setStatus('', false);
+      showError(err.message || 'erro desconhecido');
+      setStep(1,''); setStep(2,''); setStep(3,''); setStep(4,'');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('contract-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') runScanner();
+  });
+</script>
+</body>
+</html>
