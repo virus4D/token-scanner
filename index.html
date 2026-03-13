@@ -385,7 +385,7 @@
       <div class="token-info-col">
         <div class="token-name" id="t-name">—</div>
         <div class="token-address">
-          contrato: <a id="t-address-link" href="#" target="_blank" id="t-address">—</a>
+          contrato: <a id="t-address-link" href="#" target="_blank">—</a>
         </div>
         <div style="margin-top:8px">
           <span class="verified-badge" id="t-verified">—</span>
@@ -576,7 +576,6 @@
       // atualizar header
       document.getElementById('t-symbol').textContent = symbol;
       document.getElementById('t-name').textContent = name;
-      document.getElementById('t-address').textContent = short(input);
       document.getElementById('t-address-link').href = `${explorerBase}/token/${input}`;
       document.getElementById('t-address-link').textContent = input;
 
